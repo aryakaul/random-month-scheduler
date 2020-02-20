@@ -14,10 +14,9 @@ def get_num_weekends(year, month, monthrange):
             num += 1
     return num
 
-def get_probabilities(month, weekend_scaling, avg_events):
-    curr_year = datetime.datetime.now().year
-    range_in_given_month = calendar.monthrange(curr_year,month)
-    num_weekends = get_num_weekends(curr_year,month,range_in_given_month)
+def get_probabilities(month,year, weekend_scaling, avg_events):
+    range_in_given_month = calendar.monthrange(year,month)
+    num_weekends = get_num_weekends(year,month,range_in_given_month)
     num_weekdays = range_in_given_month[1]-num_weekends
     lhs = np.array([[num_weekends, num_weekdays], [1, -weekend_scaling]])
     rhs = np.array([avg_events,0])
@@ -26,14 +25,13 @@ def get_probabilities(month, weekend_scaling, avg_events):
     pr_weekday = soln[1]
     return (pr_weekend, pr_weekday)
 
-def select_days(probabilities, month):
-    curr_year = datetime.datetime.now().year
-    num_days = calendar.monthrange(curr_year,month)[1]
+def select_days(probabilities, month, year):
+    num_days = calendar.monthrange(year,month)[1]
     pr_weekend = probabilities[0]
     pr_weekday = probabilities[1]
     dates_to_add = []
     for days in range(1, num_days+1):
-        x = calendar.weekday(curr_year, month, days)
+        x = calendar.weekday(year, month, days)
         flip = random.random()
         if x > 4:
             if flip<pr_weekend:
@@ -46,6 +44,19 @@ def select_days(probabilities, month):
 
 def main():
     print("\nWelcome. \n")
+    year_chosen = None 
+    while year_chosen == None:
+        year_chosen = input(
+            "What year would you like to plan monthly events for? [1900-inf] \n\t"
+        )
+        try:
+            year_chosen = int(year_chosen)
+            if year_chosen < 1900:
+                raise Exception
+        except:
+            print("Invalid option. Please choose a valid year between 1900 and infinity\n\n")
+            year_chosen = None
+
     month_chosen = None
     while month_chosen == None:
         month_chosen = input(
@@ -112,10 +123,10 @@ def main():
                 print("Invalid option. Choose a rational number > 0\n\n")
                 weekend_scaling = None
 
-        probabilities = get_probabilities(month_chosen, weekend_scaling, eventnumpermonth)
+        probabilities = get_probabilities(month_chosen, year_chosen, weekend_scaling, eventnumpermonth)
         print("\nProbability to '%s' on a weekend %s" % (name, probabilities[0]))
         print("Probability to '%s' on a weekday %s" % (name, probabilities[1]))
-        dates_chosen = select_days(probabilities, month_chosen)
+        dates_chosen = select_days(probabilities, month_chosen, year_chosen)
         print("\nDates chosen to '%s'" % name)
         numeventsplanned += 1
         eventnamevect.append(name)
