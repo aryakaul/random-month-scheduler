@@ -18,7 +18,7 @@ def get_probabilities(month,year, weekend_scaling, avg_events):
     range_in_given_month = calendar.monthrange(year,month)
     num_weekends = get_num_weekends(year,month,range_in_given_month)
     num_weekdays = range_in_given_month[1]-num_weekends
-    lhs = np.array([[num_weekends, num_weekdays], [1, -weekend_scaling]])
+    lhs = np.array([[num_weekends, num_weekdays], [-num_weekends, weekend_scaling*num_weekdays]])
     rhs = np.array([avg_events,0])
     soln = np.linalg.solve(lhs, rhs)
     pr_weekend = soln[0]
@@ -113,7 +113,7 @@ def main():
         weekend_scaling = None
         while weekend_scaling == None:
             weekend_scaling = input(
-                "\nHow much more likely do you want to do this event on a weekend as opposed to a weekday? \n\t"
+                "\nHow much larger should E(numevents | weekdend) be than E(numevents | weekday)? \n\t"
             )
             try:
                 weekend_scaling = float(weekend_scaling)
@@ -131,6 +131,7 @@ def main():
         numeventsplanned += 1
         eventnamevect.append(name)
         eventdatevect.append(dates_chosen)
+ 
     for event_idx in range(len(eventnamevect)):
         name = eventnamevect[event_idx]
         dates = eventdatevect[event_idx]
