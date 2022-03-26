@@ -28,12 +28,11 @@ Su Mo Tu We Th Fr Sa
 30 31
 ```
 
-let's say that I wanted to commit an average of 5 random acts of kindness for this month, let's also say that I wanted to be twice as likely to do one of these acts on a weekend as opposed to a weekday. within this month, there are 10 days that fall on weekends, and 21 days that fall on weekdays. I solve the following system of linear equations for p and q.
+let's say that I wanted to commit an average of 5 random acts of kindness for this month, let's also say that I want the expected number of acts of kindness conducted on a weekend to be twice as high as the expected number of acts on a weekday. within this month, there are 10 days that fall on weekends, and 21 days that fall on weekdays. I solve the following system of linear equations for p and q.
 
 ```
 21p + 10q = 5
-2p - q = 0
+2*21p - 10q = 0
 ```
 
 p represents the probability of scheduling a random act of kindness on a weekday, and q represents the probability of scheduling a random act of kindess on a weekend. I then run bernoulli trials for each day of the given month with the calculated probability of success, and report the outcome. 
-
