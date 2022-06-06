@@ -3,166 +3,144 @@
 import datetime
 import calendar
 import numpy as np
+import re
 import random
 import argparse
 import sys
 import os
 
+# from loguru import logger
+
+
 def parse_args(args):
-   parser = argparse.ArgumentParser(description="check help!")
-   parser.add_argument("-o", "--output", dest="outputpath", required=False, help="where to dump schedule to. default is ~/.cache/YYYY-MM for the chosen year / month", type=str)
-   return parser.parse_args()
+    parser = argparse.ArgumentParser(description="check help!")
+    parser.add_argument(
+        "-i",
+        "--input",
+        dest="input",
+        required=True,
+        help="What task are you scheduling recurring monthly meetings for?",
+        type=str,
+    )
+    parser.add_argument(
+        "-y",
+        "--year",
+        dest="year",
+        required=False,
+        help="Year we are scheduling recurring events for",
+        type=int,
+    )
+    parser.add_argument(
+        "-m",
+        "--month",
+        dest="month",
+        required=False,
+        help="Month we are scheduling recurring events for",
+        type=int,
+    )
+    parser.add_argument(
+        "-n",
+        "--number",
+        dest="number",
+        required=True,
+        help="Mean number of times you would like to do this event/month",
+        type=int,
+    )
+    parser.add_argument(
+        "-s",
+        "--std",
+        dest="std",
+        required=False,
+        help="Standard deviation from the mean of the number of times to do \
+        event/month",
+        type=float,
+    )
+    parser.add_argument(
+        "-w",
+        "--weekdays",
+        dest="weekdays",
+        required=False,
+        nargs="+",
+        help="Which weekdays to include in set dates. Useful if you only want \
+        to schedule an event for the weekend. Monday - 0 and Sunday - 6. For \
+        example, if I only want to schedule events for the middle of the week,\
+        then I could type -w 0 1 2 3 4",
+        type=int,
+    )
+    return parser.parse_args()
 
-def get_num_weekends(year, month, monthrange):
-    num = 0
-    for days in range(1,monthrange[1]+1):
-        x = calendar.weekday(year, month, days)
-        if x > 4:
-            # hence weekend
-            num += 1
-    return num
 
-def get_probabilities(month,year, weekend_scaling, avg_events):
-    range_in_given_month = calendar.monthrange(year,month)
-    num_weekends = get_num_weekends(year,month,range_in_given_month)
-    num_weekdays = range_in_given_month[1]-num_weekends
-    lhs = np.array([[num_weekends, num_weekdays], [-num_weekends, weekend_scaling+num_weekdays]])
-    rhs = np.array([avg_events,0])
-    soln = np.linalg.solve(lhs, rhs)
-    pr_weekend = soln[0]
-    pr_weekday = soln[1]
-    return (pr_weekend, pr_weekday)
+def shuffle_dates(year, month, pass_weekdays=None):
+    cal = calendar.Calendar(calendar.monthrange(year, month)[1])
+    days = list(cal.itermonthdays2(year, month))
+    days = list(filter(lambda day: day[0] != 0, days))
+    if pass_weekdays is not None:
+        pass_days = []
+        for i in days:
+            if i[1] in pass_weekdays:
+                pass_days.append(i)
+        days = pass_days
+    random.shuffle(days)
+    return days
 
-def select_days(probabilities, month, year):
-    num_days = calendar.monthrange(year,month)[1]
-    pr_weekend = probabilities[0]
-    pr_weekday = probabilities[1]
-    dates_to_add = []
-    for days in range(1, num_days+1):
-        x = calendar.weekday(year, month, days)
-        flip = random.random()
-        if x > 4:
-            if flip<pr_weekend:
-                dates_to_add.append(days)
-        else:
-            if flip<pr_weekday:
-                dates_to_add.append(days)
-    return dates_to_add
+
+def pick_dates(days, number, std=None):
+    if std is not None:
+        num_picks = int(np.random.normal(number, std, 1)[0])
+        # logger.info("Number of events this month: %s" % num_picks)
+    else:
+        num_picks = number
+    if num_picks > len(days):
+        logger.warning(
+            "The number of picked days (%s) is larger than the \
+                       # number of passing days (%s). Choosing all passing days"
+            % (num_picks, len(days))
+        )
+        return days
+    return days[:num_picks]
+
+
+def print_calendar(days, month, year):
+    month_cal = calendar.month(year, month)
+    # date = datetime.date.today().day.__str__().rjust(2)
+    for i in days:
+        rday = ("\\b" + str(i[0]) + "\\b").replace("\\b ", "\\s")
+        rdayc = "\033[7m" + str(i[0]) + "\033[0m"
+        month_cal = re.sub(rday, rdayc, month_cal)
+    print(month_cal)
 
 
 def main():
-    print("\nWelcome. \n")
-    year_chosen = None
-    while year_chosen == None:
-        year_chosen = input(
-            "What year would you like to plan monthly events for? [1900-inf] (ENTER for curr. year) \n\t"
-        )
-        if year_chosen == "":
-            year_chosen = datetime.datetime.now().year
-        try:
-            year_chosen = int(year_chosen)
-            if year_chosen < 1900:
-                raise Exception
-        except:
-            print("Invalid option. Please choose a valid year between 1900 and infinity\n\n")
-            year_chosen = None
-    print("Year chosen: %s\n" % year_chosen)
+    args = parse_args(sys.argv[1:])
 
-    month_chosen = None
-    while month_chosen == None:
-        month_chosen = input(
-            "What month would you like to plan recurring, random events for? [01-12] (ENTER for curr. month) \n\t"
-        )
-        if month_chosen == "":
-            month_chosen = datetime.datetime.now().month
-        try:
-            month_chosen = int(month_chosen)
-            if month_chosen > 12 or month_chosen < 1:
-                raise Exception
-        except:
-            print("Invalid option. Please choose a number between 1 and 12\n\n")
-            month_chosen = None
-    print("Month chosen: %s\n" % calendar.month_name[month_chosen])
+    # first pick the month and date that we're working with
+    if args.year == None:
+        year_chosen = datetime.datetime.now().year
+    else:
+        year_chosen = args.year
 
-    numeventsplanned = 1
-    eventnamevect = []
-    eventdatevect = []
-    while True:
-        name = input("\nName of recurring event #%s? Type (q) to quit\n\t" % numeventsplanned)
-        if name == 'q': break
+    if args.month == None:
+        month_chosen = datetime.datetime.now().month
+    else:
+        month_chosen = args.month
+        if month_chosen > 12 or month_chosen < 1:
+            print("Invalid month chosen: %s" % month_chosen)
+            raise Exception
+    # logger.info(
+    # "Picking dates for: %s in %s" % (calendar.month_name[month_chosen], \
+    # year_chosen)
+    # )
 
-        eventnumpermonth = None
-        while eventnumpermonth == None:
-            eventnumpermonth = input(
-                "\nHow many times would you like to '%s' on average for the chosen month? \n\t" % name
-            )
-            try:
-                eventnumpermonth = int(eventnumpermonth)
-                if eventnumpermonth < 1:
-                    raise Exception
-            except:
-                print("Invalid option. Choose a valid natural number > 1\n\n")
-                eventnumpermonth = None
+    # shuffle dates in the month
+    shuffled_dates = shuffle_dates(year_chosen, month_chosen, args.weekdays)
 
-        """
-        other_events_possible_bool = None
-        while other_events_possible_bool == None:
-            other_events_possible_bool = input(
-                "\nAllow other events on the same day? [y/n]\n"
-            )
-            try:
-                if other_events_possible_bool not in ["y", "n"]:
-                    raise Exception
-                else:
-                    if other_events_possible_bool == "y":
-                        other_events_possible_bool = True
-                    else:
-                        other_events_possible_bool = False
-            except:
-                print("Invalid option. Please choose 'y' or 'n'\n\n")
-                other_events_possible_bool = None
-        """
+    # pick dates
+    picked_dates = pick_dates(shuffled_dates, args.number, args.std)
 
-        weekend_scaling = None
-        while weekend_scaling == None:
-            weekend_scaling = input(
-                "\nHow much larger should E(numevents) | weekdend be than E(numevents) | weekday? \n\t"
-            )
-            try:
-                weekend_scaling = float(weekend_scaling)
-                if weekend_scaling < 0:
-                    raise Exception
-            except:
-                print("Invalid option. Choose a rational number > 0\n\n")
-                weekend_scaling = None
+    # output chosen dates
+    print("%s is scheduled for:" % args.input)
+    print_calendar(picked_dates, month_chosen, year_chosen)
 
-        probabilities = get_probabilities(month_chosen, year_chosen, weekend_scaling, eventnumpermonth)
-        print("\nProbability to '%s' on a weekend %s" % (name, probabilities[0]))
-        print("Probability to '%s' on a weekday %s" % (name, probabilities[1]))
-        dates_chosen = select_days(probabilities, month_chosen, year_chosen)
-        print("\nDates chosen to '%s'" % name)
-        numeventsplanned += 1
-        eventnamevect.append(name)
-        eventdatevect.append(dates_chosen)
-    arguments = parse_args(sys.argv[1:])
-    defaultpath = os.path.join(os.path.expanduser("~"), ".cache", str(year_chosen)+"-"+"{:02d}".format(month_chosen))
-    if arguments.outputpath == None:
-        arguments.outputpath = defaultpath
-    for event_idx in range(len(eventnamevect)):
-        name = eventnamevect[event_idx]
-        dates = eventdatevect[event_idx]
-        print("\n%s on..." % name)
-        for d in dates:
-            print("%s %s" % (calendar.month_name[month_chosen], d))
-    with open(arguments.outputpath, 'w') as f:
-        print("Schedule written to... %s" % arguments.outputpath)
-        for event_idx in range(len(eventnamevect)):
-            name = eventnamevect[event_idx]
-            dates = eventdatevect[event_idx]
-            f.write("%s\t" % name)
-            for d in dates:
-                if d == dates[-1]: f.write("%s-%s-%s\n" % (year_chosen, "{:02d}".format(month_chosen), "{:02d}".format(d)))
-                else: f.write("%s-%s-%s\t" % (year_chosen, "{:02d}".format(month_chosen), "{:02d}".format(d)))
 
 if __name__ == "__main__":
     main()
