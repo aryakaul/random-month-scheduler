@@ -8,6 +8,7 @@ import random
 import argparse
 import sys
 import os
+
 # from loguru import logger
 
 
@@ -59,7 +60,7 @@ def parse_args(args):
         "--weekdays",
         dest="weekdays",
         required=False,
-        nargs='+',
+        nargs="+",
         help="Which weekdays to include in set dates. Useful if you only want \
         to schedule an event for the weekend. Monday - 0 and Sunday - 6. For \
         example, if I only want to schedule events for the middle of the week,\
@@ -82,26 +83,32 @@ def shuffle_dates(year, month, pass_weekdays=None):
     random.shuffle(days)
     return days
 
+
 def pick_dates(days, number, std=None):
     if std is not None:
         num_picks = int(np.random.normal(number, std, 1)[0])
         # logger.info("Number of events this month: %s" % num_picks)
-    else: num_picks = number
+    else:
+        num_picks = number
     if num_picks > len(days):
-        logger.warning("The number of picked days (%s) is larger than the \
-                       # number of passing days (%s). Choosing all passing days"\
-                       # % (num_picks, len(days)))
+        logger.warning(
+            "The number of picked days (%s) is larger than the \
+                       # number of passing days (%s). Choosing all passing days"
+            % (num_picks, len(days))
+        )
         return days
     return days[:num_picks]
+
 
 def print_calendar(days, month, year):
     month_cal = calendar.month(year, month)
     # date = datetime.date.today().day.__str__().rjust(2)
     for i in days:
-        rday  = ('\\b' + str(i[0]) + '\\b').replace('\\b ', '\\s')
+        rday = ("\\b" + str(i[0]) + "\\b").replace("\\b ", "\\s")
         rdayc = "\033[7m" + str(i[0]) + "\033[0m"
-        month_cal = re.sub(rday,rdayc,month_cal)
+        month_cal = re.sub(rday, rdayc, month_cal)
     print(month_cal)
+
 
 def main():
     args = parse_args(sys.argv[1:])
@@ -120,8 +127,8 @@ def main():
             print("Invalid month chosen: %s" % month_chosen)
             raise Exception
     # logger.info(
-        # "Picking dates for: %s in %s" % (calendar.month_name[month_chosen], \
-                                         # year_chosen)
+    # "Picking dates for: %s in %s" % (calendar.month_name[month_chosen], \
+    # year_chosen)
     # )
 
     # shuffle dates in the month
