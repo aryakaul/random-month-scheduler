@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python3
 
 import datetime
 import calendar
@@ -8,8 +8,6 @@ import random
 import argparse
 import sys
 import os
-
-# from loguru import logger
 
 
 def parse_args(args):
@@ -126,10 +124,6 @@ def main():
         if month_chosen > 12 or month_chosen < 1:
             print("Invalid month chosen: %s" % month_chosen)
             raise Exception
-    # logger.info(
-    # "Picking dates for: %s in %s" % (calendar.month_name[month_chosen], \
-    # year_chosen)
-    # )
 
     # shuffle dates in the month
     shuffled_dates = shuffle_dates(year_chosen, month_chosen, args.weekdays)
